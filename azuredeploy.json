@@ -1,0 +1,99 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "rulenameSuffix": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Differentiator code used for more than one deployment of the same rule for the same resource."
+      }
+    },
+
+    "successfulConnectionRuleParams": {
+      "type": "object",
+      "metadata": {
+        "description": "json representation of rule parameters"
+      }
+    },
+
+    "cpuCriticalParams": {
+      "type": "object",
+      "metadata": {
+        "description": "json representation of rule parameters"
+      }
+    }
+
+  },
+  "variables": {},
+  "resources": [
+
+    {
+      "condition": "[equals(toLower(parameters('successfulConnectionRuleParams').include), 'yes')]",
+      "type": "Microsoft.Insights/alertRules",
+      "apiVersion": "[parameters('successfulConnectionRuleParams').apiVersion]",
+      "location": "[parameters('successfulConnectionRuleParams').location]",
+      "name": "[concat(parameters('successfulConnectionRuleParams').name, parameters('rulenameSuffix'))]",
+      "properties": {
+        "name": "[concat(parameters('successfulConnectionRuleParams').name, parameters('rulenameSuffix'))]",
+        "description": "[parameters('successfulConnectionRuleParams').description]",
+        "isEnabled": "[equals(toLower(parameters('successfulConnectionRuleParams').isEnabled), 'yes')]",
+        "condition": {
+          "odata.type": "Microsoft.Azure.Management.Insights.Models.ThresholdRuleCondition",
+          "dataSource": {
+            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleMetricDataSource",
+            "resourceUri": "[parameters('successfulConnectionRuleParams').resourceUri]",
+            "metricName": "connection_successful"
+          },
+          "operator": "[parameters('successfulConnectionRuleParams').operator]",
+          "threshold": "[parameters('successfulConnectionRuleParams').threshold]",
+          "windowSize": "[parameters('successfulConnectionRuleParams').windowSize]",
+          "timeAggregation": "[parameters('successfulConnectionRuleParams').timeAggregation]"
+        },
+        "actions": [
+          {
+            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleEmailAction",
+            "sendToServiceOwners": false,
+            "customEmails": "[array(parameters('successfulConnectionRuleParams').customEmails)]"
+          }
+        ]
+      }
+    },
+
+    {
+      "condition": "[equals(toLower(parameters('cpuCriticalParams').include), 'yes')]",
+      "type": "Microsoft.Insights/alertRules",
+      "apiVersion": "[parameters('cpuCriticalParams').apiVersion]",
+      "location": "[parameters('cpuCriticalParams').location]",
+      "name": "[concat(parameters('cpuCriticalParams').name, parameters('rulenameSuffix'))]",
+      "properties": {
+        "name": "[concat(parameters('cpuCriticalParams').name, parameters('rulenameSuffix'))]",
+        "description": "[parameters('cpuCriticalParams').description]",
+        "isEnabled": "[equals(toLower(parameters('cpuCriticalParams').isEnabled), 'yes')]",
+        "condition": {
+          "odata.type": "Microsoft.Azure.Management.Insights.Models.ThresholdRuleCondition",
+          "dataSource": {
+            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleMetricDataSource",
+            "resourceUri": "[parameters('cpuCriticalParams').resourceUri]",
+            "metricName": "cpu_percent"
+          },
+          "operator": "[parameters('cpuCriticalParams').operator]",
+          "threshold": "[parameters('cpuCriticalParams').threshold]",
+          "windowSize": "[parameters('cpuCriticalParams').windowSize]",
+          "timeAggregation": "[parameters('cpuCriticalParams').timeAggregation]"
+        },
+        "actions": [
+          {
+            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleEmailAction",
+            "sendToServiceOwners": false,
+            "customEmails": "[array(parameters('cpuCriticalParams').customEmails)]"
+          }
+        ]
+      }
+    }
+
+  ],
+  "outputs": {}
+}
+
