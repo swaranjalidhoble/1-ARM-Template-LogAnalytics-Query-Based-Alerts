@@ -1,4 +1,4 @@
-# AzureLogAnalyticsAlerts
+
 This ARM Template will help you to create Azure log analytics query based alerts for below resource providers and listed paramter alerts.
 
 You should log analytics workspace created along with necessary solutions deployed (in this case only one solution is needed - AD Relication). You need have all rescources with below resource provider types connected to your log analytics worksapce.
