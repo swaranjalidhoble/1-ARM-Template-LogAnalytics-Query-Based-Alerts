@@ -3,97 +3,846 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
 
-    "rulenameSuffix": {
+    "location": {
       "type": "string",
-      "defaultValue": "",
+      "defaultValue": "[resourceGroup().location]",
       "metadata": {
-        "description": "Differentiator code used for more than one deployment of the same rule for the same resource."
-      }
-    },
-
-    "successfulConnectionRuleParams": {
-      "type": "object",
-      "metadata": {
-        "description": "json representation of rule parameters"
-      }
-    },
-
-    "cpuCriticalParams": {
-      "type": "object",
-      "metadata": {
-        "description": "json representation of rule parameters"
+        "description": "Location for all alerts"
       }
     }
 
   },
-  "variables": {},
   "resources": [
-
     {
-      "condition": "[equals(toLower(parameters('successfulConnectionRuleParams').include), 'yes')]",
-      "type": "Microsoft.Insights/alertRules",
-      "apiVersion": "[parameters('successfulConnectionRuleParams').apiVersion]",
-      "location": "[parameters('successfulConnectionRuleParams').location]",
-      "name": "[concat(parameters('successfulConnectionRuleParams').name, parameters('rulenameSuffix'))]",
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-CPU-Critical",
       "properties": {
-        "name": "[concat(parameters('successfulConnectionRuleParams').name, parameters('rulenameSuffix'))]",
-        "description": "[parameters('successfulConnectionRuleParams').description]",
-        "isEnabled": "[equals(toLower(parameters('successfulConnectionRuleParams').isEnabled), 'yes')]",
-        "condition": {
-          "odata.type": "Microsoft.Azure.Management.Insights.Models.ThresholdRuleCondition",
-          "dataSource": {
-            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleMetricDataSource",
-            "resourceUri": "[parameters('successfulConnectionRuleParams').resourceUri]",
-            "metricName": "connection_successful"
-          },
-          "operator": "[parameters('successfulConnectionRuleParams').operator]",
-          "threshold": "[parameters('successfulConnectionRuleParams').threshold]",
-          "windowSize": "[parameters('successfulConnectionRuleParams').windowSize]",
-          "timeAggregation": "[parameters('successfulConnectionRuleParams').timeAggregation]"
+        "description": "CPU is above 90% for listed VMs",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Perf\n| where CounterName == \"% Processor Time\" | summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 5m)",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
         },
-        "actions": [
-          {
-            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleEmailAction",
-            "sendToServiceOwners": false,
-            "customEmails": "[array(parameters('successfulConnectionRuleParams').customEmails)]"
-          }
-        ]
+        "name": "[ClientName]-AzureVM-CPU-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-CPU-Critical"
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 90,
+            "metricTrigger": {
+              "thresholdOperator": "GreaterThan",
+              "threshold": 0,
+              "metricTriggerType": "Consecutive"
+            }
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
       }
+
     },
 
     {
-      "condition": "[equals(toLower(parameters('cpuCriticalParams').include), 'yes')]",
-      "type": "Microsoft.Insights/alertRules",
-      "apiVersion": "[parameters('cpuCriticalParams').apiVersion]",
-      "location": "[parameters('cpuCriticalParams').location]",
-      "name": "[concat(parameters('cpuCriticalParams').name, parameters('rulenameSuffix'))]",
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-Disk-Critical",
       "properties": {
-        "name": "[concat(parameters('cpuCriticalParams').name, parameters('rulenameSuffix'))]",
-        "description": "[parameters('cpuCriticalParams').description]",
-        "isEnabled": "[equals(toLower(parameters('cpuCriticalParams').isEnabled), 'yes')]",
-        "condition": {
-          "odata.type": "Microsoft.Azure.Management.Insights.Models.ThresholdRuleCondition",
-          "dataSource": {
-            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleMetricDataSource",
-            "resourceUri": "[parameters('cpuCriticalParams').resourceUri]",
-            "metricName": "cpu_percent"
-          },
-          "operator": "[parameters('cpuCriticalParams').operator]",
-          "threshold": "[parameters('cpuCriticalParams').threshold]",
-          "windowSize": "[parameters('cpuCriticalParams').windowSize]",
-          "timeAggregation": "[parameters('cpuCriticalParams').timeAggregation]"
+        "description": "Available disk space is less tha 10% for listed VMs",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Perf\r\n| where ObjectName == \"LogicalDisk\" and CounterName == \"% Free Space\"\r\n| where ( InstanceName == \"C:\" )  \r\n| summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 15m) \r\n",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
         },
-        "actions": [
-          {
-            "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleEmailAction",
-            "sendToServiceOwners": false,
-            "customEmails": "[array(parameters('cpuCriticalParams').customEmails)]"
-          }
-        ]
+        "name": "[ClientName]-AzureVM-Disk-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-Disk-Critical"
+          },
+          "trigger": {
+            "thresholdOperator": "LessThan",
+            "threshold": 10,
+            "metricTrigger": {
+              "thresholdOperator": "GreaterThan",
+              "threshold": 0,
+              "metricTriggerType": "Consecutive"
+            }
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
       }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-Memory-Critical",
+      "properties": {
+        "description": "Memory utilization is above 90% for listed VMs",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Perf | where ObjectName == \"Memory\" and CounterName == \"% Committed Bytes In Use\"\r\n| summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 5m)",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-Memory-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-Memory-Critical"
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 90,
+            "metricTrigger": {
+              "thresholdOperator": "GreaterThan",
+              "threshold": 0,
+              "metricTriggerType": "Consecutive"
+            }
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-Restart-Critical",
+      "properties": {
+        "description": "Listed VMs are restarted",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureActivity | where ResourceProvider == \"Microsoft.Compute\" | where OperationName == \"Microsoft.Compute/virtualMachines/restart/action\" | summarize Value = count() by Resource, Caller, CallerIpAddress",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-Restart-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-Restart-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-Shutdown-Critical",
+      "properties": {
+        "description": "Listed VMs are shutdown",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureActivity | where ResourceProvider == \"Microsoft.Compute\" | where OperationName == \"Microsoft.Compute/virtualMachines/shutdown/action\" | summarize Value = count() by Resource, Caller",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-Shutdown-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-Shutdown-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-VMExtension-Failed-Critical",
+      "properties": {
+        "description": "Listed VMs have failed extensions",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureActivity\n| where ResourceProvider == \"Microsoft.Compute\"\n| where OperationName == \"Create or Update Virtual Machine Extension\" \n| where ActivityStatus == \"Failed\" \n| summarize by OperationName, Caller, CallerIpAddress,tostring(parse_json(Authorization).scope)",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-VMExtension-Failed-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-VMExtension-Failed-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-CleanedEventLog-Critical",
+      "properties": {
+        "description": "Listed VMs have cleaned evnet logs",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "SecurityEvent | where EventID in (1102, 517) and EventSourceName == 'Microsoft-Windows-Eventlog' | summarize AggregatedValue = count() by Computer\r\n",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-CleanedEventLog-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-CleanedEventLog-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-DetectedThreat-Critical",
+      "properties": {
+        "description": "Listed VMs have threats detected",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "ProtectionStatus  | where ThreatStatusRank > 199 and ThreatStatusRank != 470 | summarize (TimeGenerated, Rank) = argmax(TimeGenerated, ThreatStatusRank) by Computer",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-DetectedThreat-Critical",
+        "schedule": {
+          "frequencyInMinutes": 10,
+          "timeWindowInMinutes": 10
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-DetectedThreat-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-GuestLogon-Warning",
+      "properties": {
+        "description": "Listed VMs have threats detected",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "SecurityEvent | where EventID == 4624 and TargetUserName == 'Guest' and LogonType in (10, 3) | summarize AggregatedValue = count() by Computer",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-GuestLogon-Warning",
+        "schedule": {
+          "frequencyInMinutes": 10,
+          "timeWindowInMinutes": 10
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-GuestLogon-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureVM-Securitypatch-Informational",
+      "properties": {
+        "description": "Listed patches are available",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Update | where UpdateState == 'Needed' and Optional == false and Classification == 'Security Updates' and Approved != false | summarize AggregatedValue = count() by Computer",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureVM-Securitypatch-Informational",
+        "schedule": {
+          "frequencyInMinutes": 1440,
+          "timeWindowInMinutes": 1440
+        },
+        "action": {
+          "type": "string",
+          "severity": "4",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureVM-Securitypatch-Informational"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-AzureKeyVault-UnauthorizedAccess-Critical",
+      "properties": {
+        "description": "Listed callers has tryed accessing keyvault who is unauthorized",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureDiagnostics | where ResourceProvider == \"MICROSOFT.KEYVAULT\" | where ResultSignature == \"Forbidden\" | summarize by ResultDescription, OperationName, identity_claim_ipaddr_s, identity_claim_http_schemas_xmlsoap_org_ws_2005_05_identity_claims_upn_s",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-AzureKeyVault-UnauthorizedAccess-Critical",
+        "schedule": {
+          "frequencyInMinutes": 10,
+          "timeWindowInMinutes": 10
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-AzureKeyVault-UnauthorizedAccess-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-ADReplication-DestinationServerhaserrors-Warning",
+      "properties": {
+        "description": "Destination Server has errors in  AD replication",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "ADReplicationResult\n| summarize arg_max(TimeGenerated, *) by SourceServer, DestinationServer, PartitionName, TenantId\n| where LastSyncResult != 0\n| summarize AggregatedValue = count() by DestinationServer, TimeGenerated",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-ADReplication-DestinationServerhaserrors-Warning",
+        "schedule": {
+          "frequencyInMinutes": 1440,
+          "timeWindowInMinutes": 1440
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-ADReplication-DestinationServerhaserrors-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-ADReplication-SourceServerhaserrors-Warning",
+      "properties": {
+        "description": "Source Server has errors in AD replication",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "ADReplicationResult\n| summarize arg_max(TimeGenerated, *) by SourceServer, DestinationServer, PartitionName, TenantId\n| where LastSyncResult != 0\n| summarize AggregatedValue = count() by DestinationServer, TimeGenerated",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-ADReplication-SourceServerhaserrors-Warning",
+        "schedule": {
+          "frequencyInMinutes": 1440,
+          "timeWindowInMinutes": 1440
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-ADReplication-SourceServerhaserrors-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-ADReplicationErrors-Warning",
+      "properties": {
+        "description": "Replication has listed errors",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "ADReplicationResult\n| summarize arg_max(TimeGenerated, *) by SourceServer, DestinationServer, PartitionName, TenantId\n| where LastSyncResult != 0\n| summarize AggregatedValue = count() by LastSyncResultMessage\n| order by AggregatedValue desc\n",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-ADReplicationErrors-Warning",
+        "schedule": {
+          "frequencyInMinutes": 1440,
+          "timeWindowInMinutes": 1440
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-ADReplicationErrors-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-OperationActivity-Creation-Warning",
+      "properties": {
+        "description": "Operation creation activity is performed by listed caller",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureActivity | where OperationName contains \"Create\" | summarize by OperationName, ResourceGroup, Caller, CallerIpAddress, OperationNameValue, TimeGenerated",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-OperationActivity-Creation-Warning",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-OperationActivity-Creation-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-OperationActivity-Deletion-Critical",
+      "properties": {
+        "description": "Operation delection activity is performed by listed caller",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "AzureActivity | where OperationName contains \"Delete\" and OperationName != \"Microsoft.Compute/restorePointCollections/restorePoints/delete\" | summarize by OperationName, ResourceGroup, Caller, CallerIpAddress, TimeGenerated",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-OperationActivity-Deletion-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-OperationActivity-Deletion-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-LADailyDataLimitReached-Warning",
+      "properties": {
+        "description": "log analytics has reached its free data store limit",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Operation | where Detail has 'OverQuota'",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-LADailyDataLimitReached-Warning",
+        "schedule": {
+          "frequencyInMinutes": 10,
+          "timeWindowInMinutes": 10
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-LADailyDataLimitReached-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "GreaterThan",
+            "threshold": 0
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-VMSS-Nodecount-Critical",
+      "properties": {
+        "description": "VMSS has no nodes running",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Perf | where TimeGenerated >= ago(5m) | where Computer startswith \"[VMSS Name]\" | summarize arg_max(TimeGenerated, Computer) by Computer",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-VMSS-Nodecount-Critical",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "1",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-VMSS-Nodecount-Critical"
+
+          },
+          "trigger": {
+            "thresholdOperator": "LessThan",
+            "threshold": 1
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
+    },
+
+    {
+
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2018-04-16",
+      "location": "[parameters('location')]",
+      "name": "[ClientName]-VMSS-Nodecount-Warning",
+      "properties": {
+        "description": "VMSS has less than 2 nodes running",
+        "enabled": "true",
+        "source": {
+          "type": "string",
+          "query": "Perf | where TimeGenerated >= ago(10m) | where Computer startswith \"[VMSS name]\" | summarize arg_max(TimeGenerated, Computer) by Computer",
+          "dataSourceId": "/subscriptions/[subscription ID]/resourceGroups/[ResourceGroup Name]/providers/Microsoft.OperationalInsights/workspaces/[Log Anlytics WorkspaceName]",
+          "queryType": "ResultCount"
+        },
+        "name": "[ClientName]-VMSS-Nodecount-Warning",
+        "schedule": {
+          "frequencyInMinutes": 5,
+          "timeWindowInMinutes": 5
+        },
+        "action": {
+          "type": "string",
+          "severity": "2",
+          "aznsAction": {
+            "actionGroup": [
+              "/subscriptions/[subscription ID]/resourcegroups/[ResourceGroup Name]/providers/microsoft.insights/actiongroups/[ActionGroup Name]"
+            ],
+            "emailSubject": "[ClientName]-VMSS-Nodecount-Warning"
+
+          },
+          "trigger": {
+            "thresholdOperator": "LessThan",
+            "threshold": 2
+
+          },
+
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction"
+        }
+
+      }
+
     }
 
-  ],
-  "outputs": {}
+  ]
 }
+
+
+
+  
+  
+  
 
