@@ -1,7 +1,18 @@
 
 This ARM Template will help you to create Azure log analytics query based alerts for below resource providers and listed paramter alerts.
 
-You should log analytics workspace created along with necessary solutions deployed (in this case only one solution is needed - AD Relication). You need have all rescources with below resource provider types connected to your log analytics worksapce.
+You should have log analytics workspace created along with necessary solutions deployed (in this case only one solution is needed - AD Relication). You need have all rescources with below resource provider types connected to your log analytics worksapce.
+
+We have 2 type for log analytics query based alerts mentioned here in template as based on result count, based on metric measurement.
+
+To run this template you need to replace following variables:
+
+1. [ClientName]: Name of client\environment (Prod, Stage, Dev) as per your choice. You can exclude this, if you want.
+2. [subscription ID] in datasourceId: Mnetion your subscription ID (It is mandatory to mention).
+3. [ResourceGroup Name]: Mention ResourceGroup Name for Log Analytics (It is mandatory to mention).
+4. [Log Anlytics WorkspaceName]: Mention Log Analytics workspace name (It is mandatory to mention).
+5. [ResourceGroup Name] in actionGroup: Mention Resource group name for action group (It is mandatory to mention).
+6. [ActionGroup Name]: Mention action group name (It is mandatory to mention). {
 
 You can create similar alerts for different resources as well by providing correct query, thresholds and triggers.
 
